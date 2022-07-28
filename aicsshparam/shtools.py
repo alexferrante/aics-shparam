@@ -610,6 +610,62 @@ def get_reconstruction_from_coeffs(coeffs: np.array, lrec: int = 0):
     return mesh, grid
 
 
+def get_grid_from_coeffs(coeffs: np.array, lrec: int = 0):
+
+    """Converts a set of spherical harmonic coefficients into
+    its grid expansion.
+
+    Parameters
+    ----------
+    coeffs : np.array
+        Input array of spherical harmonic coefficients. These
+        array has dimensions 2xLxM, where the first dimension
+        is 0 for cosine-associated coefficients and 1 for
+        sine-associated coefficients. Second and thrid dimensions
+        represent the expansion parameters (l,m).
+
+    Returns
+    -------
+    mesh : vtkPolyData
+        Mesh that represents the input parametric grid.
+
+    Other parameters
+    ----------------
+    lrec : int, optional
+        Degree of the reconstruction. If lrec<l, then only
+        coefficients l<lrec will be used for creating the mesh.
+        If lrec>l, then the mesh will be oversampled.
+        Default is 0 meaning all coefficients
+        available in the matrix coefficients will be used.
+
+    Notes
+    -----
+        The mesh resolution is set by the size of the coefficients
+        matrix and therefore not affected by lrec.
+    """
+
+    # Degree of the expansion
+    lmax = coeffs.shape[1]
+
+    if lrec == 0:
+        lrec = lmax
+
+    # Create array (oversampled if lrec>lrec)
+    coeffs_ = np.zeros((2, lrec, lrec), dtype=np.float32)
+
+    # Adjust lrec to the expansion degree
+    if lrec > lmax:
+        lrec = lmax
+
+    # Copy coefficients
+    coeffs_[:, :lrec, :lrec] = coeffs[:, :lrec, :lrec]
+
+    # Expand into a grid
+    grid = pyshtools.expand.MakeGridDH(coeffs_, sampling=2)
+
+    return grid
+
+
 def get_reconstruction_error(grid_input: np.array, grid_rec: np.array):
 
     """Compute mean square error between two parametric grids. When applied
