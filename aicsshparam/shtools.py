@@ -6,6 +6,7 @@ from vtk.util import numpy_support
 from skimage import transform as sktrans
 from skimage import filters as skfilters
 from skimage import morphology as skmorpho
+from skimage.measure import label
 from sklearn import decomposition as skdecomp
 from scipy import interpolate as sciinterp
 from scipy import stats as scistats
@@ -18,12 +19,14 @@ def get_mesh_from_image(
     sigma: float = 0,
     lcc: bool = True,
     translate_to_origin: bool = True,
+    denoise: bool = False,
+    noise_thresh: int = 80,
 ):
 
     """Converts a numpy array into a vtkImageData and then into a 3d mesh
     using vtkContourFilter. The input is assumed to be binary and the
     isosurface value is set to 0.5.
-
+    
     Optionally the input can be pre-processed by i) extracting the largest
     connected component and ii) applying a gaussian smooth to it. In case
     smooth is used, the image is binarize using thershold 1/e.
@@ -50,7 +53,7 @@ def get_mesh_from_image(
     Other parameters
     ----------------
     lcc : bool, optional
-        Wheather or not to compute the mesh only on the largest
+        Whether or not to compute the mesh only on the largest
         connected component found in the input connected component,
         default is True.
     sigma : float, optional
@@ -59,6 +62,12 @@ def get_mesh_from_image(
     translate_to_origin : bool, optional
         Wheather or not translate the mesh to the origin (0,0,0),
         default is True.
+    denoise : bool, optional
+        Whether or not to remove small, potentially noisy objects
+        in the input image, default is False.
+    noise_thresh : int, optional
+        If denoise is True, the size threshold to use for removing
+        noisy objects.
     """
 
     img = image.copy()
@@ -77,6 +86,10 @@ def get_mesh_from_image(
 
         img[img != lcc] = 0
         img[img == lcc] = 1
+    
+    # Remove small objects in the image
+    if denoise:
+        img = skmorpho.remove_small_objects(label(img), noise_thresh)
 
     # Smooth binarize the input image and binarize
     if sigma:
